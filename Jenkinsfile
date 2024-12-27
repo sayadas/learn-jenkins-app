@@ -1,8 +1,13 @@
 pipeline {
     agent any
 
+    environments {
+        NETLIFY_SITE_ID = '81c2b546-7657-4c5d-a0ed-0bee4657eabe'
+        NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+    }
+
     stages {
-       /* stage('Build') {
+        stage('Build') {
             agent {
                 docker {
                     image 'node:18-alpine'
@@ -16,13 +21,14 @@ pipeline {
                     npm --version
                     npm ci
                     npm run build
+                    ls -la
                 '''
             }
-        } */
+        }
 
-        stage ('Run tests'){
+        stage ('Tests'){
             parallel {
-                stage ('Test'){
+                stage ('Unit Tests'){
                     agent {
                         docker {
                             image 'node:18-alpine'
@@ -33,6 +39,11 @@ pipeline {
                         sh '''
                             npm test
                         '''
+                    }
+                    post {
+                        always {
+                            junit 'jest-results/junit.xml'
+                        }
                     }
         }
 
@@ -60,8 +71,26 @@ pipeline {
     }
     post {
         always {
-            junit 'jest-results/junit.xml'
             publishHTML([allowMissing: false, alwaysLinkToLastBuild: false, keepAll: false, reportDir: 'playwright-report', reportFiles: 'index.html', reportName: 'Playwright HTML Report', reportTitles: '', useWrapperFileDirectly: true])
+        }
+
+        stage ('Deploy'){
+            agent {
+                docker {
+                    image'node:18-alpine'
+                    reuseNode true
+                }
+            }
+            steps {
+                sh '''
+                    npm install netlify-cli
+                    node _modules/.bin/netlify --version
+                    echo "Deploying to prodection. Site ID: $NETLIFY_SITE_ID"
+                    node_modules/.bin/netlify status
+                    node_modules/.bin/netlify deploy --dir=build --prod
+                '''
+            }
+
         }
     }
 }    
