@@ -94,7 +94,8 @@ stages {
                     node_modules/.bin/netlify deploy --dir=build
                 '''
             }
-
+        }
+        
         stage('Deploy Prd') {
             agent {
                 docker {
